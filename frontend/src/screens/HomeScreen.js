@@ -120,6 +120,25 @@ const HomeScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
+  const renderCategoryItem = ({ item }) => (
+    <TouchableOpacity
+      style={[
+        styles.categoryButton,
+        selectedCategory === item && styles.activeCategoryButton
+      ]}
+      onPress={() => setSelectedCategory(item)}
+    >
+      <Text
+        style={[
+          styles.categoryText,
+          selectedCategory === item && styles.activeCategoryText
+        ]}
+      >
+        {item}
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fdf3e7" />
@@ -156,33 +175,16 @@ const HomeScreen = ({ navigation }) => {
         )}
       </View>
 
-      {/* Categories */}
-      <View style={styles.categoryContainer}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={categories}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.categoryButton,
-                selectedCategory === item && styles.activeCategoryButton
-              ]}
-              onPress={() => setSelectedCategory(item)}
-            >
-              <Text
-                style={[
-                  styles.categoryText,
-                  selectedCategory === item && styles.activeCategoryText
-                ]}
-              >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
+      {/* Categories - FIXED: Using FlatList without ScrollView wrapper */}
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        data={categories}
+        keyExtractor={(item) => item}
+        renderItem={renderCategoryItem}
+        contentContainerStyle={styles.categoryContainer}
+        style={styles.categoryList}
+      />
 
       {/* Items Count */}
       <View style={styles.itemsCountContainer}>
@@ -191,7 +193,7 @@ const HomeScreen = ({ navigation }) => {
         </Text>
       </View>
 
-      {/* Items Grid */}
+      {/* Items Grid - FIXED: Main content area */}
       {filteredItems.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="search" size={60} color="#ccc" />
@@ -212,6 +214,7 @@ const HomeScreen = ({ navigation }) => {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          style={styles.itemsList}
         />
       )}
 
@@ -254,6 +257,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  userName: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 2,
+  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -294,9 +302,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  categoryList: {
+    marginBottom: 10,
+  },
   categoryContainer: {
     paddingLeft: 20,
-    marginBottom: 10,
   },
   categoryButton: {
     paddingHorizontal: 20,
@@ -324,6 +334,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
+  },
+  itemsList: {
+    flex: 1,
   },
   listContainer: {
     paddingHorizontal: 20,

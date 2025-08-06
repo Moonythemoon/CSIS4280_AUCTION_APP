@@ -63,16 +63,26 @@ export default function AppInfoScreen({ navigation }) {
           <InfoRow icon="flask" label="Environment" value={__DEV__ ? 'Development' : 'Production'} />
         </View>
 
-        {/* User Info Section */}
+        {/* User Info Section - FIXED */}
         {user && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>User Information</Text>
-            <InfoRow icon="person" label="Name" value={user.name} />
-            <InfoRow icon="mail" label="Email" value={user.email} />
-            <InfoRow icon="checkmark-circle" label="Email Verified" value={user.isEmailVerified ? 'Yes' : 'No'} />
-            <InfoRow icon="calendar" label="Member Since" value={
-              user.memberSince ? new Date(user.memberSince).toLocaleDateString() : 'Recently'
-            } />
+            <InfoRow icon="person" label="Name" value={user.name || 'Not set'} />
+            <InfoRow icon="mail" label="Email" value={user.email || 'Not set'} />
+            {/* FIXED: Use emailVerified instead of isEmailVerified for Firebase */}
+            <InfoRow 
+              icon="checkmark-circle" 
+              label="Email Verified" 
+              value={user.emailVerified ? 'Yes' : 'No'} 
+            />
+            <InfoRow 
+              icon="calendar" 
+              label="Member Since" 
+              value={user.memberSince ? 
+                new Date(user.memberSince).toLocaleDateString() : 
+                'Recently'
+              } 
+            />
           </View>
         )}
 
@@ -109,11 +119,11 @@ export default function AppInfoScreen({ navigation }) {
           <InfoRow icon="logo-react" label="Frontend" value="React Native + Expo" />
           <InfoRow icon="server" label="Backend" value="Node.js + Express" />
           <InfoRow icon="library" label="Database" value="MongoDB Atlas" />
-          <InfoRow icon="shield-checkmark" label="Authentication" value="JWT Tokens" />
+          <InfoRow icon="shield-checkmark" label="Authentication" value="Firebase Auth + JWT" />
           <InfoRow icon="image" label="Image Storage" value="Local + Cloudinary Ready" />
         </View>
 
-        {/* Contact Section */}
+        {/* Support Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
           <InfoRow icon="help-circle" label="Help & Support" value="Contact Developer" />

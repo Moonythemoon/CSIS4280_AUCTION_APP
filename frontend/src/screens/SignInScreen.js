@@ -46,8 +46,8 @@ export default function SignInScreen({ navigation }) {
       console.log('✅ Signin result:', result);
 
       if (result.success) {
-        // Check if email is verified
-        if (!result.data.user.isEmailVerified) {
+        // Check if email is verified - FIXED: Use result.user instead of result.data.user
+        if (!result.user.emailVerified) {
           Alert.alert(
             'Email Not Verified',
             'Please verify your email address before continuing.',

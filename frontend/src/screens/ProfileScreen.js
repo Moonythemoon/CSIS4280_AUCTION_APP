@@ -9,13 +9,22 @@ import {
   Alert,
   StatusBar,
   FlatList,
+  TextInput,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useItems } from '../context/ItemsContext';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('items');
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [loading, setLoading] = useState(false);
+  
   const { user, signOut } = useAuth();
   const { items } = useItems();
 
@@ -34,6 +43,59 @@ export default function ProfileScreen({ navigation }) {
       daysLeft: 3,
     }
   ];
+
+  const handleEditProfile = () => {
+    setEditName(user?.name || '');
+    setEditBio(user?.bio || '');
+    setEditModalVisible(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Error', 'Name cannot be empty');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Here you would typically update the user profile via API
+      // For now, we'll just simulate a successful update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      Alert.alert('Success', 'Profile updated successfully!');
+      setEditModalVisible(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangeProfilePicture = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to change your profile picture.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        // Here you would upload the image to your server
+        console.log('New profile image selected:', result.assets[0].uri);
+        Alert.alert('Success', 'Profile picture updated!');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to change profile picture');
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -73,34 +135,30 @@ export default function ProfileScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             ) : (
-              <FlatList
-                data={userItems}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={styles.itemCard}
-                    onPress={() => navigation.navigate('ItemDetail', { item })}
-                  >
-                    <Image source={{ uri: item.photo }} style={styles.itemImage} />
-                    <View style={styles.itemDetails}>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <View style={styles.itemStats}>
-                        <Text style={styles.itemStat}>
-                          Current bid: <Text style={styles.itemPrice}>{item.currentBid}</Text>
-                        </Text>
-                        <Text style={styles.itemStat}>{item.bidCount} bids</Text>
-                      </View>
-                      <Text style={styles.daysLeft}>
-                        {item.daysLeft > 0 ? `${item.daysLeft} days left` : 'Ended'}
+              userItems.map((item) => (
+                <TouchableOpacity 
+                  key={item.id}
+                  style={styles.itemCard}
+                  onPress={() => navigation.navigate('ItemDetail', { item })}
+                >
+                  <Image source={{ uri: item.photo }} style={styles.itemImage} />
+                  <View style={styles.itemDetails}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    <View style={styles.itemStats}>
+                      <Text style={styles.itemStat}>
+                        Current bid: <Text style={styles.itemPrice}>{item.currentBid}</Text>
                       </Text>
+                      <Text style={styles.itemStat}>{item.bidCount} bids</Text>
                     </View>
-                    <TouchableOpacity style={styles.moreButton}>
-                      <Ionicons name="ellipsis-vertical" size={20} color="#666" />
-                    </TouchableOpacity>
+                    <Text style={styles.daysLeft}>
+                      {item.daysLeft > 0 ? `${item.daysLeft} days left` : 'Ended'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity style={styles.moreButton}>
+                    <Ionicons name="ellipsis-vertical" size={20} color="#666" />
                   </TouchableOpacity>
-                )}
-                showsVerticalScrollIndicator={false}
-              />
+                </TouchableOpacity>
+              ))
             )}
           </View>
         );
@@ -120,36 +178,31 @@ export default function ProfileScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             ) : (
-              <FlatList
-                data={userBids}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <View style={styles.itemCard}>
-                    <Image source={{ uri: item.image }} style={styles.itemImage} />
-                    <View style={styles.itemDetails}>
-                      <Text style={styles.itemName}>{item.itemName}</Text>
-                      <View style={styles.itemStats}>
-                        <Text style={styles.itemStat}>
-                          My bid: <Text style={styles.itemPrice}>{item.myBid}</Text>
-                        </Text>
-                        <Text style={styles.itemStat}>
-                          Current: <Text style={styles.itemPrice}>{item.currentBid}</Text>
-                        </Text>
-                      </View>
-                      <View style={styles.bidStatus}>
-                        <Text style={[
-                          styles.statusText,
-                          item.status === 'winning' ? styles.winning : styles.outbid
-                        ]}>
-                          {item.status === 'winning' ? 'WINNING' : 'OUTBID'}
-                        </Text>
-                        <Text style={styles.daysLeft}>{item.daysLeft} days left</Text>
-                      </View>
+              userBids.map((item) => (
+                <View key={item.id} style={styles.itemCard}>
+                  <Image source={{ uri: item.image }} style={styles.itemImage} />
+                  <View style={styles.itemDetails}>
+                    <Text style={styles.itemName}>{item.itemName}</Text>
+                    <View style={styles.itemStats}>
+                      <Text style={styles.itemStat}>
+                        My bid: <Text style={styles.itemPrice}>{item.myBid}</Text>
+                      </Text>
+                      <Text style={styles.itemStat}>
+                        Current: <Text style={styles.itemPrice}>{item.currentBid}</Text>
+                      </Text>
+                    </View>
+                    <View style={styles.bidStatus}>
+                      <Text style={[
+                        styles.statusText,
+                        item.status === 'winning' ? styles.winning : styles.outbid
+                      ]}>
+                        {item.status === 'winning' ? 'WINNING' : 'OUTBID'}
+                      </Text>
+                      <Text style={styles.daysLeft}>{item.daysLeft} days left</Text>
                     </View>
                   </View>
-                )}
-                showsVerticalScrollIndicator={false}
-              />
+                </View>
+              ))
             )}
           </View>
         );
@@ -176,18 +229,20 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.placeholder} />
         </View>
 
-        {/* Profile Header */}
+        {/* Profile Header - REMOVED RATING */}
         <View style={styles.profileHeader}>
-          <View style={styles.profileImageContainer}>
+          <TouchableOpacity 
+            style={styles.profileImageContainer}
+            onPress={handleChangeProfilePicture}
+          >
             <Image 
               source={{ uri: user?.profileImage || 'https://via.placeholder.com/100x100?text=User' }} 
               style={styles.profileImage} 
             />
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={12} color="#FFD700" />
-              <Text style={styles.rating}>4.8</Text>
+            <View style={styles.cameraOverlay}>
+              <Ionicons name="camera" size={16} color="#fff" />
             </View>
-          </View>
+          </TouchableOpacity>
           
           <View style={styles.profileInfo}>
             <Text style={styles.userName}>{user?.name || 'User'}</Text>
@@ -200,7 +255,7 @@ export default function ProfileScreen({ navigation }) {
             </Text>
           </View>
           
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
             <Ionicons name="pencil" size={16} color="#de6b22" />
           </TouchableOpacity>
         </View>
@@ -241,7 +296,7 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Tab Content */}
+        {/* Tab Content - FIXED: Using regular View instead of FlatList */}
         {renderTabContent()}
 
         {/* App Info Button */}
@@ -260,6 +315,72 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={editModalVisible}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="Enter your name"
+                  maxLength={50}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Bio (Optional)</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  value={editBio}
+                  onChangeText={setEditBio}
+                  placeholder="Tell us about yourself..."
+                  multiline
+                  numberOfLines={3}
+                  maxLength={200}
+                />
+                <Text style={styles.charCount}>{editBio.length}/200</Text>
+              </View>
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.saveButton, loading && styles.disabledButton]}
+                onPress={handleSaveProfile}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
@@ -330,26 +451,18 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
   },
-  ratingContainer: {
+  cameraOverlay: {
     position: 'absolute',
-    bottom: -5,
-    right: -5,
-    backgroundColor: '#fff',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#de6b22',
+    width: 24,
+    height: 24,
     borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  rating: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 2,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   profileInfo: {
     flex: 1,
@@ -428,6 +541,7 @@ const styles = StyleSheet.create({
   tabContent: {
     paddingHorizontal: 20,
     minHeight: 200,
+    marginBottom: 20,
   },
   emptyState: {
     alignItems: 'center',
@@ -555,6 +669,97 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
     marginLeft: 8,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginRight: 10,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  saveButton: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginLeft: 10,
+    borderRadius: 12,
+    backgroundColor: '#de6b22',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
   bottomNav: {
     position: 'absolute',

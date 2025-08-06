@@ -149,12 +149,17 @@ export default function ItemDetailScreen({ navigation, route }) {
     return (item.daysLeft > 0 || item.hoursLeft > 0);
   };
 
+  const handleShare = () => {
+    // Share functionality
+    Alert.alert('Share', 'Share functionality would be implemented here');
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fdf3e7" />
       
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Header - REMOVED FAVORITE BUTTON */}
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -162,8 +167,8 @@ export default function ItemDetailScreen({ navigation, route }) {
           >
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.favoriteButton}>
-            <Ionicons name="heart-outline" size={24} color="#333" />
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <Ionicons name="share-outline" size={24} color="#333" />
           </TouchableOpacity>
         </View>
 
@@ -299,7 +304,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  favoriteButton: {
+  shareButton: {
     width: 40,
     height: 40,
     borderRadius: 20,

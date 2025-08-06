@@ -34,6 +34,11 @@ const itemSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // Minimum bid increment
+  minBidIncrement: {
+    type: Number,
+    default: 1.00
+  },
   // Single photo URL (simplified - no multiple photos)
   photo: {
     type: String,
@@ -44,7 +49,11 @@ const itemSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  // Simple auction timing
+  // Auction timing
+  auctionStartDate: {
+    type: Date,
+    default: Date.now
+  },
   auctionEndDate: {
     type: Date,
     required: [true, 'Auction end date is required'],
@@ -55,10 +64,10 @@ const itemSchema = new mongoose.Schema({
       message: 'Auction end date must be in the future'
     }
   },
-  // Simple status
+  // Status
   status: {
     type: String,
-    enum: ['active', 'ended', 'cancelled'],
+    enum: ['active', 'ended', 'cancelled', 'sold'],
     default: 'active'
   },
   winner: {
@@ -74,25 +83,53 @@ const itemSchema = new mongoose.Schema({
   views: {
     type: Number,
     default: 0
+  },
+  // Featured item flag
+  isFeatured: {
+    type: Boolean,
+    default: false
+  },
+  // Condition of the item
+  condition: {
+    type: String,
+    enum: ['new', 'like-new', 'good', 'fair', 'poor'],
+    default: 'good'
+  },
+  // Location
+  location: {
+    type: String,
+    default: 'Not specified'
   }
 }, {
   timestamps: true
 });
 
-// Simple virtual for days/hours left
+// Indexes for better performance
+itemSchema.index({ status: 1, auctionEndDate: 1 });
+itemSchema.index({ category: 1, status: 1 });
+itemSchema.index({ seller: 1 });
+itemSchema.index({ name: 'text', description: 'text' });
+
+// Virtual for time left calculation
 itemSchema.virtual('timeLeft').get(function() {
   const now = new Date();
   const endDate = new Date(this.auctionEndDate);
   const timeDiff = endDate - now;
   
   if (timeDiff <= 0) {
-    return { days: 0, hours: 0, expired: true };
+    return { days: 0, hours: 0, minutes: 0, expired: true };
   }
   
   const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
   
-  return { days, hours, expired: false };
+  return { days, hours, minutes, expired: false };
+});
+
+// Virtual for minimum next bid
+itemSchema.virtual('minimumNextBid').get(function() {
+  return this.currentBid + this.minBidIncrement;
 });
 
 // Static method to find active auctions
@@ -101,12 +138,94 @@ itemSchema.statics.findActiveAuctions = function(filters = {}) {
     status: 'active',
     auctionEndDate: { $gt: new Date() },
     ...filters
+  }).populate('seller', 'name profileImage rating');
+};
+
+// Static method to find ending soon auctions
+itemSchema.statics.findEndingSoon = function(hours = 24) {
+  const endTime = new Date();
+  endTime.setHours(endTime.getHours() + hours);
+  
+  return this.find({
+    status: 'active',
+    auctionEndDate: { 
+      $gt: new Date(),
+      $lte: endTime 
+    }
   }).populate('seller', 'name');
+};
+
+// Static method to search items
+itemSchema.statics.searchItems = function(query, filters = {}) {
+  const searchFilter = {
+    status: 'active',
+    auctionEndDate: { $gt: new Date() },
+    ...filters
+  };
+
+  if (query) {
+    searchFilter.$text = { $search: query };
+  }
+
+  return this.find(searchFilter)
+    .populate('seller', 'name')
+    .sort(query ? { score: { $meta: 'textScore' } } : { createdAt: -1 });
 };
 
 // Instance method to check if auction is active
 itemSchema.methods.isActive = function() {
   return this.status === 'active' && this.auctionEndDate > new Date();
+};
+
+// Instance method to end auction
+itemSchema.methods.endAuction = async function() {
+  this.status = 'ended';
+  
+  // Find the winning bid
+  const Bid = mongoose.model('Bid');
+  const winningBid = await Bid.findOne({ item: this._id })
+    .sort({ amount: -1 })
+    .populate('bidder');
+  
+  if (winningBid) {
+    this.winner = winningBid.bidder._id;
+    this.winningBid = winningBid.amount;
+    this.status = 'sold';
+    
+    // Update winning bid status
+    winningBid.status = 'won';
+    await winningBid.save();
+    
+    // Update other bids as lost
+    await Bid.updateMany(
+      { item: this._id, _id: { $ne: winningBid._id } },
+      { status: 'lost' }
+    );
+  }
+  
+  return this.save();
+};
+
+// Pre save middleware
+itemSchema.pre('save', function(next) {
+  // Set auction start date if not set
+  if (!this.auctionStartDate) {
+    this.auctionStartDate = new Date();
+  }
+  
+  // Initialize currentBid with startingPrice if not set
+  if (!this.currentBid) {
+    this.currentBid = this.startingPrice;
+  }
+  
+  next();
+});
+
+// Method to update current bid
+itemSchema.methods.updateBid = async function(newBidAmount) {
+  this.currentBid = newBidAmount;
+  this.bidCount += 1;
+  return this.save();
 };
 
 module.exports = mongoose.model('Item', itemSchema);
